@@ -22,7 +22,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapView.onCreate(savedInstanceState)
 
         mapView.getMapAsync(this)
-
     }
 
     override fun onMapReady(map: NaverMap) {
