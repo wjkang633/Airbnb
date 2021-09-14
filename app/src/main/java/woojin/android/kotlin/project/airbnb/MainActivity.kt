@@ -10,15 +10,17 @@ import androidx.viewpager2.widget.ViewPager2
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
 import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.Overlay
 import com.naver.maps.map.util.FusedLocationSource
 import com.naver.maps.map.util.MarkerIcons
+import com.naver.maps.map.widget.LocationButtonView
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickListener {
 
     private val mapView: MapView by lazy {
         findViewById(R.id.mapView)
@@ -30,6 +32,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private val recyclerView: RecyclerView by lazy {
         findViewById(R.id.houseRecyclerView)
+    }
+
+    private val currentLocationButton: LocationButtonView by lazy {
+        findViewById(R.id.currentLocationButton)
     }
 
     private val viewPagerAdapter = HouseViewPagerAdapter()
@@ -46,6 +52,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapView.getMapAsync(this)
 
         viewPager.adapter = viewPagerAdapter
+        viewPager.registerOnPageChangeCallback(object:ViewPager2.OnPageChangeCallback(){
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+
+                val selectedHouse = viewPagerAdapter.currentList[position]
+
+                val cameraUpdate = CameraUpdate.scrollTo(LatLng(selectedHouse.lat, selectedHouse.lng)).animate(CameraAnimation.Easing)
+                naverMap.moveCamera(cameraUpdate)
+            }
+        })
 
         recyclerView.adapter = recyclerAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -62,7 +78,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         //현위치 버튼(위치 권한 필요 1.매니패스트)
         val uiSetting = naverMap.uiSettings
-        uiSetting.isLocationButtonEnabled = true
+        uiSetting.isLocationButtonEnabled = false
+
+        currentLocationButton.map = naverMap
 
         //위치 권한 필요 2.
         locationSource = FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE)
@@ -111,7 +129,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             naverMap.apply {
                 val marker = Marker()
                 marker.position = LatLng(house.lat, house.lng)
-                // 추후 마커 클릭 리스너
+                marker.onClickListener = this@MainActivity
                 marker.map = naverMap
                 marker.tag = house.id
                 marker.icon = MarkerIcons.BLACK
@@ -172,6 +190,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onLowMemory() {
         super.onLowMemory()
         mapView.onLowMemory()
+    }
+
+    override fun onClick(overlay: Overlay): Boolean {
+        val selectedHouse = viewPagerAdapter.currentList.firstOrNull {
+            it.id == overlay.tag
+        }
+
+        selectedHouse?.let {
+            val position = viewPagerAdapter.currentList.indexOf(it)
+            viewPager.currentItem = position
+        }
+
+        return true
     }
 
     companion object {
