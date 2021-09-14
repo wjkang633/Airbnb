@@ -1,9 +1,11 @@
 package woojin.android.kotlin.project.airbnb
 
+import android.content.Intent
 import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -38,8 +40,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
         findViewById(R.id.currentLocationButton)
     }
 
-    private val viewPagerAdapter = HouseViewPagerAdapter()
+    private val viewPagerAdapter = HouseViewPagerAdapter(itemClicked = {
+        val intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(
+                Intent.EXTRA_TEXT,
+                "[지금 이 가격에 예약하세요] ${it.title} ${it.price} 사진보기:${it.imgUrl}"
+            )
+            type = "text/plain"
+        }
+
+        startActivity(Intent.createChooser(intent, null))
+    })
+
     private val recyclerAdapter = HouseListAdapter()
+
+    private val bottomSheetTitleTextView: TextView by lazy {
+        findViewById(R.id.bottomSheetTitleTextView)
+    }
 
     private lateinit var naverMap: NaverMap
     private lateinit var locationSource: FusedLocationSource
@@ -52,13 +70,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
         mapView.getMapAsync(this)
 
         viewPager.adapter = viewPagerAdapter
-        viewPager.registerOnPageChangeCallback(object:ViewPager2.OnPageChangeCallback(){
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
 
                 val selectedHouse = viewPagerAdapter.currentList[position]
 
-                val cameraUpdate = CameraUpdate.scrollTo(LatLng(selectedHouse.lat, selectedHouse.lng)).animate(CameraAnimation.Easing)
+                val cameraUpdate =
+                    CameraUpdate.scrollTo(LatLng(selectedHouse.lat, selectedHouse.lng))
+                        .animate(CameraAnimation.Easing)
                 naverMap.moveCamera(cameraUpdate)
             }
         })
@@ -113,6 +133,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
                             updateMarker(dto.items)
                             viewPagerAdapter.submitList(dto.items)
                             recyclerAdapter.submitList(dto.items)
+
+                            bottomSheetTitleTextView.text = "${dto.items.size}의 숙소"
                         }
                     }
 
